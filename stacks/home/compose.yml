@@ -1,0 +1,51 @@
+services:
+  home:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: home
+    networks:
+      - public_net
+      - internal_net
+    volumes:
+      - ./ha_config:/config
+
+  nheengatu:
+    container_name: nheengatu
+    image: rhasspy/wyoming-piper:latest
+    restart: always
+    volumes:
+      - ./wyoming:/data
+    command: --voice pt_BR-faber-medium --uri tcp://0.0.0.0:10200
+    networks:
+      - internal_net
+      - public_net
+
+  aendub:
+    container_name: aendub
+    image: rhasspy/wyoming-whisper:latest
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    volumes:
+      - ./wyoming:/data
+    command: --model base --language pt --uri tcp://0.0.0.0:10300 --device cuda
+    networks:
+      - internal_net
+      - public_net
+
+  docs:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: docs
+    networks:
+      - public_net
+      - internal_net
+    environment:
+      - PAPERLESS_URL=https://docs.${DOMAIN} # Variável
+      - PAPERLESS_SECRET_KEY=${SESSION_SECRET} # Variável
+
+networks:
+    internal_net:
+        external: true
+    public_net:
+        external: true
