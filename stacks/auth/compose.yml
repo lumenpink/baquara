@@ -1,0 +1,32 @@
+services:
+  ldap:
+    image: lldap/lldap:latest
+    container_name: ldap
+    restart: always
+    networks:
+      - internal
+    environment:
+      - LLDAP_JWT_SECRET=${JWT_SECRET}     # Variável
+      - LLDAP_LDAP_BASE_DN=${LDAP_BASE_DN} # Variável (Calculada auto)
+    volumes:
+      - ./lldap_data:/data
+
+  aaa:
+    image: authelia/authelia:latest
+    container_name: aaa
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - ./authelia_config:/config
+
+  redis:
+    image: redis:alpine
+    container_name: auth_cache
+    networks:
+      - internal
+
+networks:
+  internal:
+    name: internal_net
+    external: true

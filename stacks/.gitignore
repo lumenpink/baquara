@@ -1,0 +1,10 @@
+ai/baquara_data/
+ai/ollama/
+ai/piper_models/
+auth/authelia_config/
+auth/lldap_data/
+infra/homepage_config/
+infra/npm_data/
+infra/npm_letsencrypt/
+home/ha_config/
+home/wyoming

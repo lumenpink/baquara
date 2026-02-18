@@ -1,0 +1,34 @@
+services:
+  mail:
+    image: stalwartlabs/stalwart:latest
+    container_name: mail
+    restart: unless-stopped
+    networks:
+      - mail_net
+      - auth_net
+    ports:
+      - "25:25"
+      - "587:587"
+      - "465:465"
+      - "993:993"
+    volumes:
+      - ./stalwart:/opt/stalwart
+
+  webmail:
+    image: linagora/tmail-web:latest
+    container_name: webmail
+    networks:
+      - mail_net
+      - public
+    environment:
+      - JMAP_HOSTNAME=${DOMAIN} # Variável
+
+networks:
+  mail_net:
+    name: mail_internal
+  auth_net:
+    external: true
+    name: internal_net
+  public:
+    external: true
+    name: public_net

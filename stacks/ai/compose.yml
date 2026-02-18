@@ -1,0 +1,34 @@
+services:
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    networks:
+      - internal_net
+    volumes:
+      - ./ollama:/root/.ollama
+
+  ui:
+    container_name: baquara_ui
+    image: ghcr.io/open-webui/open-webui:main
+    restart: always
+    networks:
+      - internal_net
+      - public_net
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - ENABLE_HOME_ASSISTANT=True
+      - HOME_ASSISTANT_URL=http://home:8123
+      - HOME_ASSISTANT_API_KEY=${HA_API_KEY} # Variável
+    volumes:
+      - ./baquara_data:/app/backend/data
+
+networks:
+  internal_net:
+    external: true
+  public_net:
+    external: true

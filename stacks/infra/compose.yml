@@ -1,0 +1,47 @@
+services:
+  proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: proxy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+      - 4343:443
+      - 81:81
+    networks:
+      - tunnel
+      - internal
+      - public
+    volumes:
+      - ./npm_data:/data
+      - ./npm_letsencrypt:/etc/letsencrypt
+
+  dashboard:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: dashboard
+    restart: always
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS=dash.${DOMAIN},localhost,127.0.0.1 # Variável
+    networks:
+      - internal
+    volumes:
+      - ./homepage_config:/app/config
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    networks:
+      - tunnel
+      - public
+    command: tunnel run --token ${CF_TOKEN} # Variável
+
+networks:
+  public:
+    name: public_net
+    external: true
+  tunnel:
+    name: tunnel_conn
+    external: true
+  internal:
+    name: internal_net
+    external: true
