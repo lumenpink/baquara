@@ -1,6 +1,6 @@
 #!/bin/bash
-# Baquara Installer V23 (The Wiper)
-# Features: Full System Wipe/Reset Capability, Auto-Config, Safety Checks
+# Baquara Installer V24 (Error Handler Edition)
+# Fixes: Empty URL check for GitHub API downloads, Fallback for Sunshine
 
 # --- Configurações ---
 APP_NAME="Baquara"
@@ -26,15 +26,13 @@ warn() { echo -e "${YELLOW}[AVISO]${NC} $1"; }
 success() { echo -e "${GREEN}[SUCESSO]${NC} $1"; }
 error() { echo -e "${RED}[ERRO]${NC} $1"; exit 1; }
 
-# Verifica Root
 if [ "$EUID" -ne 0 ]; then error "Execute como root (sudo)."; fi
 
-# Identifica o Usuário 1000
 HUMAN_USER=$(id -nu 1000 2>/dev/null)
-if [ -z "$HUMAN_USER" ]; then HUMAN_USER="lumen"; fi 
+if [ -z "$HUMAN_USER" ]; then HUMAN_USER="admin"; fi 
 HUMAN_HOME=$(eval echo "~$HUMAN_USER")
 
-# --- TRATAMENTO DE ARGUMENTOS ---
+# --- WIPE MODE ---
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --name) APP_NAME="$2"; shift ;;
@@ -45,79 +43,29 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# ==============================================================================
-# FUNÇÃO DE WIPE (EXORCISMO COMPLETO)
-# ==============================================================================
 if [ "$WIPE_MODE" = true ]; then
     clear
-    echo -e "${RED}======================================================${NC}"
-    echo -e "${RED}   PERIGO: MODO DE LIMPEZA TOTAL (WIPE) ATIVADO   ${NC}"
-    echo -e "${RED}======================================================${NC}"
-    echo -e "Isso irá DELETAR PERMANENTEMENTE:"
-    echo -e "1. Todos os dados em $BASE_DIR"
-    echo -e "2. Todos os containers, volumes e redes do Docker"
-    echo -e "3. O cofre de senhas em $CREDENTIALS_FILE"
-    echo -e "4. Instalações do Zotero/Obsidian"
-    echo -e "5. Configurações salvas"
-    echo ""
-    echo -n "Digite 'SIM' para confirmar a destruição: "
+    echo -e "${RED}!!! WIPE MODE !!!${NC}"
+    echo -n "Digite 'SIM' para apagar TUDO (Docker, Dados, Configs): "
     read CONFIRM
+    if [ "$CONFIRM" != "SIM" ]; then error "Cancelado."; fi
     
-    if [ "$CONFIRM" != "SIM" ]; then
-        error "Cancelado. Nada foi apagado."
-    fi
-
-    log "Iniciando protocolo de destruição..."
-
-    # 1. Docker Kill
-    log "Parando e removendo containers..."
-    if [ -n "$(docker ps -aq)" ]; then
-        docker stop $(docker ps -aq) 2>/dev/null
-        docker rm $(docker ps -aq) 2>/dev/null
-    fi
-    
-    log "Limpando volumes e redes..."
+    log "Destruindo tudo..."
+    if [ -n "$(docker ps -aq)" ]; then docker stop $(docker ps -aq) 2>/dev/null; docker rm $(docker ps -aq) 2>/dev/null; fi
     docker network prune -f >/dev/null 2>&1
     docker volume prune -f >/dev/null 2>&1
-    # Opcional: docker system prune -a -f (Isso apaga imagens também, demora pra baixar de novo)
-
-    # 2. Arquivos de Sistema
-    log "Removendo arquivos de dados e configurações..."
-    rm -rf "$BASE_DIR"
-    rm -f "$CREDENTIALS_FILE"
-    
-    # 3. Apps e Links
-    log "Removendo aplicações..."
-    rm -rf /opt/zotero
-    rm -f /usr/bin/zotero
-    rm -f /usr/share/applications/zotero.desktop
-    
-    # 4. Repositórios Apt (Opcional, mas deixa limpo)
-    log "Limpando fontes do Apt..."
-    rm -f /etc/apt/sources.list.d/docker.list
+    rm -rf "$BASE_DIR" "$CREDENTIALS_FILE" /opt/zotero /usr/bin/zotero /usr/share/applications/zotero.desktop
+    rm -f /etc/apt/sources.list.d/{docker.list,vscode.list,nvidia-container-toolkit.list,zotero.list}
     rm -f /etc/apt/keyrings/docker.gpg
-    rm -f /etc/apt/sources.list.d/vscode.list
-    rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list
-    rm -f /etc/apt/sources.list.d/zotero.list
-    
-    # 5. SSH Keys (Opcional - Pergunta?)
-    # Por segurança, NÃO apago chaves SSH globais para não bloquear seu acesso ao servidor se estiver remoto.
-    
-    success "Sistema limpo! Pronto para uma instalação 'fresh'."
+    success "Sistema limpo."
     exit 0
 fi
 
-# ==============================================================================
-# INÍCIO DA INSTALAÇÃO NORMAL
-# ==============================================================================
-
-# --- 0. PREPARAÇÃO DO SISTEMA ---
-# Garante que não temos lixo de tentativas anteriores (Mini-Wipe seguro)
+# --- 0. PREPARAÇÃO ---
 rm -f /etc/apt/sources.list.d/{docker.list,vscode.list,nvidia-container-toolkit.list,zotero.list} 2>/dev/null
 
-# Reset Sources se necessário
 if ! grep -q "non-free-firmware" /etc/apt/sources.list; then
-    log "Configurando repositórios Debian..."
+    log "Configurando repositórios..."
     cat <<EOF > /etc/apt/sources.list
 deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
@@ -126,10 +74,9 @@ EOF
     apt-get update -qq
 fi
 
-# Instalação Base
-log "Instalando dependências..."
+log "Instalando base..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl wget gnupg ca-certificates lsb-release \
+    curl wget gnupg ca-certificates lsb-release iputils-ping ethtool \
     apt-transport-https git jq micro htop rsync whiptail openssh-client \
     linux-headers-amd64 build-essential firmware-linux python3 python3-bcrypt >/dev/null
 
@@ -167,7 +114,7 @@ if [ "$SILENT_MODE" = false ]; then
     fi
     save_config
 else
-    if [ -z "$EMAIL_GIT" ]; then error "Faltam variáveis para silent mode."; fi
+    if [ -z "$EMAIL_GIT" ]; then error "Variáveis ausentes para silent mode."; fi
 fi
 
 # --- 2. SEGREDOS ---
@@ -182,11 +129,14 @@ if [ ! -f "$CREDENTIALS_FILE" ]; then
     
     cat <<EOF > "$CREDENTIALS_FILE"
 ==================================================
-   COFRE DE SENHAS (Salvo em $(date))
+   COFRE DE SENHAS ($APP_NAME)
 ==================================================
 [PORTAINER] admin / $PASS_PORTAINER
 [LLDAP]     admin / $PASS_LLDAP
 [DATABASE]  root  / $PASS_MYSQL
+[TECHNITIUM DNS]
+O Technitium exigira que voce crie uma senha no 
+seu primeiro acesso em http://IP_DO_SERVIDOR:5380
 ==================================================
 EOF
     chmod 600 "$CREDENTIALS_FILE"
@@ -251,6 +201,18 @@ fi
 
 # --- 4. CORE ---
 if [[ $CHOICES == *"CORE"* ]]; then
+    # LIBERAR A PORTA 53 DO SYSTEMD-RESOLVED PARA O TECHNITIUM
+    if systemctl is-active --quiet systemd-resolved; then
+        if grep -q "DNSStubListener=yes" /etc/systemd/resolved.conf || grep -q "#DNSStubListener=yes" /etc/systemd/resolved.conf; then
+            log "Liberando porta 53 para o servidor DNS Docker..."
+            sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+            sed -i 's/DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+            sed -i 's/#DNS=/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf
+            systemctl restart systemd-resolved
+        fi
+    fi
+
+    # INSTALAR DOCKER, NVIDIA TOOLKIT E CONFIGURAR PERMISSÕES
     if ! command -v docker &> /dev/null; then
         install -m 0755 -d /etc/apt/keyrings
         curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
@@ -260,6 +222,7 @@ if [[ $CHOICES == *"CORE"* ]]; then
     fi
     usermod -aG docker "$HUMAN_USER"
     
+    # NVIDIA CONTAINER TOOLKIT (Para Suporte a GPU, se aplicável)
     if ! dpkg -s nvidia-container-toolkit &> /dev/null; then
         curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg --yes
         curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -286,13 +249,13 @@ if [[ $CHOICES == *"HOMELAB"* ]]; then
 
     mkdir -p "$BASE_DIR"/{dockge,homepage_config,authelia_config,npm_data,stacks}
 
-    # Auto-Generators
     cat <<EOF > "$BASE_DIR/homepage_config/services.yaml"
 ---
-- Infraestrutura:
-    - Portainer: { icon: portainer.png, href: http://portainer:9000, description: Manager }
-    - Dockge: { icon: dockge.png, href: http://dockge:5001, description: Stacks }
-    - Proxy: { icon: nginx-proxy-manager.png, href: http://proxy:81, description: NPM }
+- Infra:
+    - Portainer: { icon: portainer.png, href: http://portainer:9000, description: Portainer Docker Manager }
+    - Dockge: { icon: dockge.png, href: http://dockge:5001, description: Dockge Stack Manager }
+    - Proxy: { icon: nginx-proxy-manager.png, href: http://proxy:81, description: Nginx Proxy Manager }
+    - Technitium DNS: { icon: technitium.png, href: http://technitium:53, description: DNS Server }
 - Apps:
     - Webmail: { icon: roundcube.png, href: https://mail.$DOMAIN }
     - Zotero: { icon: nextcloud.png, href: https://dav.$DOMAIN }
@@ -370,15 +333,24 @@ if [[ $CHOICES == *"UNIV"* ]]; then
     if [ ! -f /usr/bin/zotero ]; then
         log "Instalando Zotero..."
         wget -qO /tmp/zotero.tar.bz2 "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&mode=tarball"
-        rm -rf /opt/zotero; tar -xjf /tmp/zotero.tar.bz2 -C /opt/
-        mv /opt/Zotero_linux-x86_64 /opt/zotero 2>/dev/null || true
-        /opt/zotero/set_launcher_icon
-        ln -sf /opt/zotero/zotero.desktop /usr/share/applications/zotero.desktop
-        ln -sf /opt/zotero/zotero /usr/bin/zotero
+        if [ -s /tmp/zotero.tar.bz2 ]; then
+            rm -rf /opt/zotero; tar -xjf /tmp/zotero.tar.bz2 -C /opt/
+            mv /opt/Zotero_linux-x86_64 /opt/zotero 2>/dev/null || true
+            /opt/zotero/set_launcher_icon
+            ln -sf /opt/zotero/zotero.desktop /usr/share/applications/zotero.desktop
+            ln -sf /opt/zotero/zotero /usr/bin/zotero
+        else
+            warn "Falha ao baixar Zotero (Arquivo vazio)."
+        fi
     fi
     if ! dpkg -s obsidian &> /dev/null; then
+        log "Baixando Obsidian..."
         OBS_URL=$(curl -s https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest | jq -r '.assets[] | select(.name | endswith("_amd64.deb")) | .browser_download_url')
-        wget -qO /tmp/obsidian.deb "$OBS_URL" && apt-get install -y /tmp/obsidian.deb && rm /tmp/obsidian.deb
+        if [ ! -z "$OBS_URL" ]; then
+            wget -qO /tmp/obsidian.deb "$OBS_URL" && apt-get install -y /tmp/obsidian.deb && rm /tmp/obsidian.deb
+        else
+            warn "Falha na API do GitHub para Obsidian."
+        fi
     fi
 fi
 
@@ -402,9 +374,16 @@ if [[ $CHOICES == *"REMOTE"* ]]; then
     fi
     if ! dpkg -s sunshine &> /dev/null; then
         SUN_URL=$(curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest | jq -r '.assets[] | select(.name | endswith("debian-bookworm_amd64.deb")) | .browser_download_url')
-        wget -O /tmp/sun.deb "$SUN_URL" && apt-get install -y /tmp/sun.deb && rm /tmp/sun.deb
-        echo 'KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"' > /etc/udev/rules.d/85-sunshine-input.rules
-        udevadm control --reload-rules && udevadm trigger
+        # Fallback URL caso API falhe (Versão estável conhecida)
+        if [ -z "$SUN_URL" ]; then SUN_URL="https://github.com/LizardByte/Sunshine/releases/download/v0.23.1/sunshine-debian-bookworm-amd64.deb"; fi
+        
+        if [ ! -z "$SUN_URL" ]; then
+            wget -O /tmp/sun.deb "$SUN_URL" && apt-get install -y /tmp/sun.deb && rm /tmp/sun.deb
+            echo 'KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"' > /etc/udev/rules.d/85-sunshine-input.rules
+            udevadm control --reload-rules && udevadm trigger
+        else
+            warn "Falha ao obter URL do Sunshine."
+        fi
     fi
 fi
 
@@ -423,4 +402,4 @@ echo -e "${CYAN}---------------------------------------------${NC}"
 echo -e "WebDAV: $WEBDAV_USER / $WEBDAV_PASS"
 echo -e "Senhas: $CREDENTIALS_FILE"
 echo -e "${RED}REINICIE A SESSÃO PARA O DOCKER FUNCIONAR SEM SUDO!${NC}"
-echo -e "${CYAN}---------------------------------------------${NC}"bvvvvvv
+echo -e "${CYAN}---------------------------------------------${NC}"
