@@ -1,10 +1,9 @@
-#!/bin/bash
-# Baquara Installer V24 (Error Handler Edition)
-# Fixes: Empty URL check for GitHub API downloads, Fallback for Sunshine
+'''#!/bin/bash
+# Baquara Installer V24 (Hardened Edition)
 
 # --- Configurações ---
 APP_NAME="Baquara"
-GIT_REPO="https://tildegit.org/lumen/baquara.git"
+GIT_REPO="https://github.com/lumenpink/baquara.git"
 BASE_DIR="/data"
 CREDENTIALS_FILE="/root/baquara_credentials.txt"
 SECRETS_FILE="$BASE_DIR/.system_secrets"
@@ -67,9 +66,9 @@ rm -f /etc/apt/sources.list.d/{docker.list,vscode.list,nvidia-container-toolkit.
 if ! grep -q "non-free-firmware" /etc/apt/sources.list; then
     log "Configurando repositórios..."
     cat <<EOF > /etc/apt/sources.list
-deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
-deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb https://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+deb https://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+deb https://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
 EOF
     apt-get update -qq
 fi
@@ -77,11 +76,16 @@ fi
 log "Instalando base..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl wget gnupg ca-certificates lsb-release iputils-ping ethtool \
+    net-tools \
     apt-transport-https git jq micro htop rsync whiptail openssh-client \
     linux-headers-amd64 build-essential firmware-linux python3 python3-bcrypt >/dev/null
 
 # --- 1. CONFIGURAÇÃO ---
 if [ -f "$CONFIG_FILE" ]; then source "$CONFIG_FILE"; fi
+
+sanitize_input() {
+    echo "$1" | sed -e 's/[^a-zA-Z0-9@._-]//g'
+}
 
 save_config() {
     echo "APP_NAME=\"$APP_NAME\"" > "$CONFIG_FILE"
@@ -97,11 +101,12 @@ save_config() {
 if [ "$SILENT_MODE" = false ]; then
     [ -z "$APP_NAME" ] && APP_NAME="Baquara"
     NEW_NAME=$(whiptail --inputbox "Host Name:" 10 60 "$APP_NAME" 3>&1 1>&2 2>&3)
-    [ ! -z "$NEW_NAME" ] && APP_NAME="$NEW_NAME"
+    [ ! -z "$NEW_NAME" ] && APP_NAME=$(sanitize_input "$NEW_NAME")
     [ -z "$GIT_NAME" ] && GIT_NAME=$(whiptail --inputbox "Git Name:" 10 60 "Admin User" 3>&1 1>&2 2>&3)
     [ -z "$EMAIL_GIT" ] && EMAIL_GIT=$(whiptail --inputbox "Git Email:" 10 60 "git@example.com" 3>&1 1>&2 2>&3)
     [ -z "$EMAIL_ADMIN" ] && EMAIL_ADMIN=$(whiptail --inputbox "Admin Email:" 10 60 "$EMAIL_GIT" 3>&1 1>&2 2>&3)
     [ -z "$DOMAIN" ] && DOMAIN=$(whiptail --inputbox "Domínio:" 10 60 "lohn.in" 3>&1 1>&2 2>&3)
+    DOMAIN=$(sanitize_input "$DOMAIN")
 
     if [ -z "$CHOICES" ]; then
         CHOICES=$(whiptail --title "Instalação" --checklist "Módulos:" 20 78 10 \
@@ -306,13 +311,7 @@ EOF
     if ! docker ps | grep -q portainer; then
         docker run -d -p 9000:9000 --name portainer --restart=always \
         -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data \
-        portainer/portainer-ce:latest --admin-password "$HASH_PORTAINER"
-    fi
-    if ! docker ps | grep -q dockge; then
-        docker run -d -p 5001:5001 --name dockge --restart=always \
-        -v /var/run/docker.sock:/var/run/docker.sock -v "$BASE_DIR/dockge":/app/data \
-        -v "$BASE_DIR/stacks":/data/stacks -e DOCKGE_STACKS_DIR=/data/stacks \
-        louislam/dockge:latest
+        portainer/portainer-ce:2.19.4 --admin-password "$HASH_PORTAINER"
     fi
 
     log "Iniciando Stacks..."
@@ -332,7 +331,8 @@ fi
 if [[ $CHOICES == *"UNIV"* ]]; then
     if [ ! -f /usr/bin/zotero ]; then
         log "Instalando Zotero..."
-        wget -qO /tmp/zotero.tar.bz2 "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&mode=tarball"
+        curl -fSL "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&mode=tarball" -o /tmp/zotero.tar.bz2
+        # Add integrity check here if a checksum is available from the source
         if [ -s /tmp/zotero.tar.bz2 ]; then
             rm -rf /opt/zotero; tar -xjf /tmp/zotero.tar.bz2 -C /opt/
             mv /opt/Zotero_linux-x86_64 /opt/zotero 2>/dev/null || true
@@ -347,7 +347,9 @@ if [[ $CHOICES == *"UNIV"* ]]; then
         log "Baixando Obsidian..."
         OBS_URL=$(curl -s https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest | jq -r '.assets[] | select(.name | endswith("_amd64.deb")) | .browser_download_url')
         if [ ! -z "$OBS_URL" ]; then
-            wget -qO /tmp/obsidian.deb "$OBS_URL" && apt-get install -y /tmp/obsidian.deb && rm /tmp/obsidian.deb
+            curl -fSL "$OBS_URL" -o /tmp/obsidian.deb
+            # Add integrity check here if a checksum is available from the source
+            apt-get install -y /tmp/obsidian.deb && rm /tmp/obsidian.deb
         else
             warn "Falha na API do GitHub para Obsidian."
         fi
@@ -356,7 +358,7 @@ fi
 
 if [[ $CHOICES == *"DEV"* ]]; then
     if ! command -v code &> /dev/null; then
-        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        curl -fSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
         install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
         echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
         rm -f packages.microsoft.gpg
@@ -367,8 +369,12 @@ fi
 if [[ $CHOICES == *"REMOTE"* ]]; then
     if ! dpkg -s chrome-remote-desktop &> /dev/null; then
         log "Instalando Remote Access..."
-        wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && apt-get install -y /tmp/chrome.deb && rm /tmp/chrome.deb
-        wget -O /tmp/crd.deb https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb
+        curl -fSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb
+        # Add integrity check here if a checksum is available from the source
+        apt-get install -y /tmp/chrome.deb && rm /tmp/chrome.deb
+
+        curl -fSL https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb -o /tmp/crd.deb
+        # Add integrity check here if a checksum is available from the source
         apt-get install -y /tmp/crd.deb || apt-get install -f -y
         rm /tmp/crd.deb
     fi
@@ -378,7 +384,9 @@ if [[ $CHOICES == *"REMOTE"* ]]; then
         if [ -z "$SUN_URL" ]; then SUN_URL="https://github.com/LizardByte/Sunshine/releases/download/v0.23.1/sunshine-debian-bookworm-amd64.deb"; fi
         
         if [ ! -z "$SUN_URL" ]; then
-            wget -O /tmp/sun.deb "$SUN_URL" && apt-get install -y /tmp/sun.deb && rm /tmp/sun.deb
+            curl -fSL "$SUN_URL" -o /tmp/sun.deb
+            # Add integrity check here if a checksum is available from the source
+            apt-get install -y /tmp/sun.deb && rm /tmp/sun.deb
             echo 'KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"' > /etc/udev/rules.d/85-sunshine-input.rules
             udevadm control --reload-rules && udevadm trigger
         else
@@ -403,3 +411,4 @@ echo -e "WebDAV: $WEBDAV_USER / $WEBDAV_PASS"
 echo -e "Senhas: $CREDENTIALS_FILE"
 echo -e "${RED}REINICIE A SESSÃO PARA O DOCKER FUNCIONAR SEM SUDO!${NC}"
 echo -e "${CYAN}---------------------------------------------${NC}"
+'''
