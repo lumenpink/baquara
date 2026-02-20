@@ -1,4 +1,4 @@
-'''#!/bin/bash
+#!/bin/bash
 # Baquara Installer V24 (Hardened Edition)
 
 # --- Configurações ---
@@ -340,7 +340,7 @@ if [[ $CHOICES == *"UNIV"* ]]; then
             ln -sf /opt/zotero/zotero.desktop /usr/share/applications/zotero.desktop
             ln -sf /opt/zotero/zotero /usr/bin/zotero
         else
-            warn "Falha ao baixar Zotero (Arquivo vazio)."
+            warn "Falha ao baixar Zotero \(Arquivo vazio\)."
         fi
     fi
     if ! dpkg -s obsidian &> /dev/null; then
