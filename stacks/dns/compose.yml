@@ -3,6 +3,7 @@ services:
     image: technitium/dns-server:latest
     container_name: technitium
     restart: always
+    network_mode: host
     ports:
       # Portas padrão de DNS (TCP e UDP)
       - "53:53/udp"
