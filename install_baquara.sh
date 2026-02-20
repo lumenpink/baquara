@@ -175,7 +175,7 @@ else
 fi
 
 # --- 3. GIT & SSH ---
-GIT_FULL_NAME="$GIT_NAME ($APP_NAME)"
+GIT_FULL_NAME="$GIT_NAME \($APP_NAME\)"
 setup_git_user() {
     local T_USER=$1; local T_HOME=$2
     sudo -u $T_USER git config --global user.name "$GIT_FULL_NAME"
