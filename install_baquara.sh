@@ -198,7 +198,7 @@ if [ ! -f "$BASE_DIR/.ssh_viewed" ] || [ "$SILENT_MODE" = false ]; then
     clear
     echo -e "${YELLOW}--- CHAVES SSH \(Adicione no Git Server\) ---${NC}"
     echo -e "${CYAN}Root:${NC}"; cat /root/.ssh/id_ed25519.pub
-    echo -e "\n${CYAN}User ($HUMAN_USER):${NC}"; cat $HUMAN_HOME/.ssh/id_ed25519.pub
+    echo -e "\n${CYAN}User \($HUMAN_USER\):${NC}"; cat $HUMAN_HOME/.ssh/id_ed25519.pub
     echo -e "${YELLOW}-------------------------------------------${NC}"
     if [ "$SILENT_MODE" = false ]; then read -p "Enter para continuar..."; fi
     touch "$BASE_DIR/.ssh_viewed"
