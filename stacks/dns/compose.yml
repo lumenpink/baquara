@@ -1,6 +1,6 @@
 services:
   technitium:
-    image: technitium/dnsserver:latest
+    image: technitium/dns-server:latest
     container_name: technitium
     restart: always
     ports:
