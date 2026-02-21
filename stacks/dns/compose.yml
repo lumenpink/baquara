@@ -4,27 +4,27 @@ services:
     container_name: technitium
     restart: always
     network_mode: host
-    ports:
-      # Portas padrão de DNS (TCP e UDP)
-      - "53:53/udp"
-      - "53:53/tcp"
-      # Interface de Administração
-      - "5380:5380/tcp"
-      # Portas modernas (DNS-over-TLS e DNS-over-QUIC)
-      - "853:853/tcp"
-      - "853:853/udp"
-      # NOTA: O DNS-over-HTTPS (443) foi omitido aqui para não conflitar 
-      # com o Nginx Proxy Manager (NPM).
+    # ports:
+    #   # Portas padrão de DNS (TCP e UDP)
+    #   - "53:53/udp"
+    #   - "53:53/tcp"
+    #   # Interface de Administração
+    #   - "5380:5380/tcp"
+    #   # Portas modernas (DNS-over-TLS e DNS-over-QUIC)
+    #   - "853:853/tcp"
+    #   - "853:853/udp"
+    #   # NOTA: O DNS-over-HTTPS (443) foi omitido aqui para não conflitar 
+    #   # com o Nginx Proxy Manager (NPM).
     environment:
       - TZ=America/Sao_Paulo
     volumes:
       - ./dns_data:/etc/dns
-    networks:
-      - internal_net
-      - public_net
+#    networks:
+#      - internal_net
+#      - public_net
 
-networks:
-  internal_net:
-    external: true
-  public_net:
-    external: true
+#networks:
+#  internal_net:
+#    external: true
+#  public_net:
+#    external: true
