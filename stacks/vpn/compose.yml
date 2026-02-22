@@ -8,6 +8,9 @@ services:
       - ./data:/var/lib/headscale
     ports:
       - "8080:8080"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     command: serve
     networks:
       - internal_net
