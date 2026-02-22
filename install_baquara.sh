@@ -10,6 +10,10 @@ SECRETS_FILE="$BASE_DIR/.system_secrets"
 CONFIG_FILE="$BASE_DIR/.baquara.conf"
 SILENT_MODE=false
 WIPE_MODE=false
+# Headscale (DER)
+HEADSCALE_DERP_DIR="$BASE_DIR/stacks/vpn/config"
+HEADSCALE_DERP_FILE="$DEST_DIR/derp_map.json"
+HEADSCALE_DERP_URL="https://controlplane.tailscale.com/derpmap/default"
 
 # Cores
 GREEN='\033[1;32m'
@@ -393,6 +397,20 @@ if [[ $CHOICES == *"REMOTE"* ]]; then
             warn "Falha ao obter URL do Sunshine."
         fi
     fi
+fi
+
+# Config Headscale
+mkdir -p "$HEADSCALE_DERP_DIR"
+echo "--- Baixando DERP Map atualizado ---"
+if curl -s -f "$HEADSCALE_DERP_URL" -o "$HEADSCALE_DERP_FILE.tmp"; then
+    mv "$HEADSCALE_DERP_FILE.tmp" "$HEADSCALE_DERP_FILE"
+    echo "Sucesso: Mapa salvo em $HEADSCALE_DERP_FILE"
+    
+    # Ajusta permissão para o container do Headscale (UID 1000)
+    chown 1000:1000 "$HEADSCALE_DERP_FILE"
+else
+    echo "Erro: Não foi possível baixar o mapa. Verifique a conexão."
+    rm -f "$HEADSCALE_DERP_FILE.tmp"
 fi
 
 # Updater Script
