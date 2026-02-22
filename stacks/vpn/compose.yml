@@ -10,18 +10,18 @@ services:
       - "8080:8080"
     command: headscale serve
     networks:
-      - baquara_network
+      - internal_net
 
   headscale-ui:
     image: ghcr.io/gurucomputing/headscale-ui:latest
     container_name: headscale-ui
     restart: unless-stopped
     networks:
-      - baquara_network
+      - internal_net
     # A UI será acessada via Caddy, então não precisamos expor porta aqui
     environment:
       - HTTP_PORT=9090
 
 networks:
-  baquara_network:
+  internal_net:
     external: true
