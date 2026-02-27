@@ -383,9 +383,9 @@ if [[ $CHOICES == *"REMOTE"* ]]; then
         rm /tmp/crd.deb
     fi
     if ! dpkg -s sunshine &> /dev/null; then
-        SUN_URL=$(curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest | jq -r '.assets[] | select(.name | endswith("debian-bookworm_amd64.deb")) | .browser_download_url')
+        SUN_URL=$(curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest | jq -r '.assets[] | select(.name | endswith("debian-trixie-amd64.deb")) | .browser_download_url')
         # Fallback URL caso API falhe (Versão estável conhecida)
-        if [ -z "$SUN_URL" ]; then SUN_URL="https://github.com/LizardByte/Sunshine/releases/download/v0.23.1/sunshine-debian-bookworm-amd64.deb"; fi
+        if [ -z "$SUN_URL" ]; then SUN_URL="https://github.com/LizardByte/Sunshine/releases/download/v2025.924.154138/sunshine-debian-trixie-amd64.deb"; fi
         
         if [ ! -z "$SUN_URL" ]; then
             curl -fSL "$SUN_URL" -o /tmp/sun.deb
@@ -428,5 +428,4 @@ echo -e "${CYAN}---------------------------------------------${NC}"
 echo -e "WebDAV: $WEBDAV_USER / $WEBDAV_PASS"
 echo -e "Senhas: $CREDENTIALS_FILE"
 echo -e "${RED}REINICIE A SESSÃO PARA O DOCKER FUNCIONAR SEM SUDO!${NC}"
-echo -e "${CYAN}---------------------------------------------${NC}"
-'''
+echo -e "${CYAN}---------------------------------------------${NC}
