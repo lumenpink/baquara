@@ -11,3 +11,4 @@ homepage_config/services.yaml
 **/.env
 stacks/vpn/data
 stacks/dns/dns_data
+stacks/vpn/config

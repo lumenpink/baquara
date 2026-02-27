@@ -12,7 +12,7 @@ SILENT_MODE=false
 WIPE_MODE=false
 # Headscale (DER)
 HEADSCALE_DERP_DIR="$BASE_DIR/stacks/vpn/config"
-HEADSCALE_DERP_FILE="$DEST_DIR/derp_map.json"
+HEADSCALE_DERP_FILE="$HEADSCALE_DERP_DIR/derp_map.json"
 HEADSCALE_DERP_URL="https://controlplane.tailscale.com/derpmap/default"
 
 # Cores
