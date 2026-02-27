@@ -3,3 +3,11 @@ obsidian/
 vscode/
 stacks-backup/
 stacks/stacks.zip
+.ssh_viewed
+.baquara.conf
+.system_secrets
+authelia_config/configuration.yml
+homepage_config/services.yaml
+**/.env
+stacks/vpn/data
+stacks/dns/dns_data
